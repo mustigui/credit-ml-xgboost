@@ -1,0 +1,11 @@
+# Conda environment for local dev and parity with the Docker image.
+# Create: conda env create -f environment.yml
+# Update: conda env update -f environment.yml --prune
+name: ml-classification-pipeline
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - -r requirements.txt

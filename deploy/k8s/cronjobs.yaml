@@ -1,0 +1,78 @@
+# Kubernetes batch deployment: schedule training (twice yearly), inference (monthly), drift (monthly).
+# Prerequisites: same container image pushed to your registry, ConfigMap/Secret for MLFLOW_TRACKING_URI,
+# and a PersistentVolumeClaim for shared artifacts if workers are not colocated with MLflow.
+#
+# Apply: kubectl apply -f deploy/k8s/cronjobs.yaml
+# Replace REPLACE_WITH_YOUR_IMAGE and namespace as needed.
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: xgb-retrain-biannual
+spec:
+  schedule: "0 0 1 1,7 *"
+  # timeZone: "UTC"  # requires Kubernetes 1.27+; omit on older clusters (use UTC node time)
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: train
+              image: REPLACE_WITH_YOUR_IMAGE
+              imagePullPolicy: IfNotPresent
+              command: ["python", "-m", "src.train"]
+              env:
+                - name: MLFLOW_TRACKING_URI
+                  value: "http://mlflow-service:5000"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: xgb-inference-monthly
+spec:
+  schedule: "0 0 1 * *"
+  # timeZone: "UTC"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: infer
+              image: REPLACE_WITH_YOUR_IMAGE
+              imagePullPolicy: IfNotPresent
+              command: ["python", "-m", "src.infer"]
+              env:
+                - name: MLFLOW_TRACKING_URI
+                  value: "http://mlflow-service:5000"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: xgb-drift-monthly
+spec:
+  schedule: "0 30 1 * *"
+  # timeZone: "UTC"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: drift
+              image: REPLACE_WITH_YOUR_IMAGE
+              imagePullPolicy: IfNotPresent
+              command: ["python", "-m", "src.drift"]
+              env:
+                - name: MLFLOW_TRACKING_URI
+                  value: "http://mlflow-service:5000"

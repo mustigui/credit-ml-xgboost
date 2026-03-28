@@ -1,0 +1,11 @@
+# Pip deps (used by conda env and Docker)
+xgboost>=2.0.0,<3
+scikit-learn>=1.4.0,<2
+pandas>=2.0.0,<3
+numpy>=1.26.0,<3
+mlflow>=3.1.0,<4
+pyyaml>=6.0,<7
+joblib>=1.3.0,<2
+scipy>=1.11.0,<2
+apscheduler>=3.10.0,<4
+python-dotenv>=1.0.0,<2

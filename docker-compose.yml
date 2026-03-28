@@ -1,0 +1,91 @@
+# Local / single-node deployment: MLflow server + optional long-running scheduler.
+# Usage:
+#   docker compose up -d mlflow
+#   docker compose run --rm pipeline-train
+#   docker compose --profile scheduler up -d pipeline-scheduler
+#
+# Point MLflow UI at http://localhost:5000
+
+services:
+  mlflow:
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_data:/mlflow-data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  pipeline-train:
+    build: .
+    profiles: ["manual"]
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      - project_data:/app/data
+      - project_artifacts:/app/artifacts
+      - project_mlruns:/app/mlruns
+    depends_on:
+      mlflow:
+        condition: service_healthy
+
+  pipeline-infer:
+    build: .
+    profiles: ["manual"]
+    command: ["python", "-m", "src.infer"]
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      - project_data:/app/data
+      - project_artifacts:/app/artifacts
+      - project_mlruns:/app/mlruns
+    depends_on:
+      mlflow:
+        condition: service_healthy
+
+  pipeline-drift:
+    build: .
+    profiles: ["manual"]
+    command: ["python", "-m", "src.drift"]
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      - project_data:/app/data
+      - project_artifacts:/app/artifacts
+      - project_mlruns:/app/mlruns
+    depends_on:
+      mlflow:
+        condition: service_healthy
+
+  pipeline-scheduler:
+    build: .
+    profiles: ["scheduler"]
+    command: ["python", "-m", "src.scheduler"]
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      - project_data:/app/data
+      - project_artifacts:/app/artifacts
+      - project_mlruns:/app/mlruns
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mlflow_data:
+  project_data:
+  project_artifacts:
+  project_mlruns:
