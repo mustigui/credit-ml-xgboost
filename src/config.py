@@ -23,7 +23,13 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
 
     # Resolve paths relative to project root
     paths = cfg.get("paths", {})
-    for key in ("data_dir", "reference_stats_path", "inference_output_dir", "drift_report_dir"):
+    for key in (
+        "data_dir",
+        "reference_stats_path",
+        "inference_output_dir",
+        "drift_report_dir",
+        "explainability_dir",
+    ):
         if key in paths and paths[key]:
             p = Path(paths[key])
             if not p.is_absolute():

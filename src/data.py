@@ -43,15 +43,17 @@ def load_classification_frame(cfg: dict[str, Any]) -> tuple[pd.DataFrame, pd.Ser
 
 def build_preprocess_and_split(
     cfg: dict[str, Any],
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, ColumnTransformer]:
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, ColumnTransformer, tuple[str, ...]]:
     X, y, _ = load_classification_frame(cfg)
     rs = cfg["data"]["random_state"]
     test_size = cfg["data"]["test_size"]
 
-    # Encode string labels for XGBoost
     if y.dtype == object or str(y.dtype).startswith("category"):
-        y_enc = pd.Series(pd.Categorical(y).codes, index=y.index, name=y.name)
+        cat = pd.Categorical(y)
+        target_class_names = tuple(str(c) for c in cat.categories)
+        y_enc = pd.Series(cat.codes, index=y.index, name=y.name)
     else:
+        target_class_names = tuple(str(v) for v in sorted(y.unique()))
         y_enc = y.astype(int)
 
     X_train, X_test, y_train, y_test = train_test_split(
@@ -90,7 +92,7 @@ def build_preprocess_and_split(
         )
 
     preprocessor = ColumnTransformer(transformers=transformers, remainder="drop")
-    return X_train, X_test, y_train, y_test, preprocessor
+    return X_train, X_test, y_train, y_test, preprocessor, target_class_names
 
 
 def save_reference_stats(X: pd.DataFrame, path: str | Path) -> None:

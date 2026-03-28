@@ -4,6 +4,7 @@ paths:
   reference_stats_path: artifacts/reference_stats.json
   inference_output_dir: artifacts/inference
   drift_report_dir: artifacts/drift
+  explainability_dir: artifacts/explain
 
 mlflow:
   experiment_name: xgb_classification
@@ -31,6 +32,11 @@ training:
     colsample_bytree: [0.7, 0.85, 1.0]
     min_child_weight: [1, 3, 5]
     gamma: [0, 0.1, 0.2]
+
+# SHAP plots + JSON (same MLflow run, artifact path "explainability")
+explainability:
+  enabled: true
+  max_samples: 500
 
 drift:
   psi_bins: 10

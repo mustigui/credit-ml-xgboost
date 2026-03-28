@@ -13,6 +13,7 @@ from xgboost import XGBClassifier
 
 from src.config import load_config
 from src.data import build_preprocess_and_split, save_reference_stats
+from src.explainability import log_shap_explainability
 
 
 def _build_pipeline(preprocessor, random_state: int) -> Pipeline:
@@ -34,7 +35,9 @@ def run_training(config_path: str | Path | None = None) -> dict[str, Any]:
     mlflow_cfg = cfg["mlflow"]
     train_cfg = cfg["training"]
 
-    X_train, X_test, y_train, y_test, preprocessor = build_preprocess_and_split(cfg)
+    X_train, X_test, y_train, y_test, preprocessor, target_class_names = build_preprocess_and_split(
+        cfg
+    )
     ref_path = cfg["paths"]["reference_stats_path"]
     save_reference_stats(X_train, ref_path)
     data_dir = Path(cfg["paths"]["data_dir"])
@@ -84,6 +87,24 @@ def run_training(config_path: str | Path | None = None) -> dict[str, Any]:
         }
         mlflow.log_metrics(metrics)
         mlflow.log_params({f"best__{k}": v for k, v in search.best_params_.items()})
+
+        exp_cfg = cfg.get("explainability", {})
+        if exp_cfg.get("enabled", True):
+            exp_dir = Path(cfg["paths"]["explainability_dir"])
+            try:
+                shap_meta = log_shap_explainability(
+                    best,
+                    X_train,
+                    X_test,
+                    exp_dir,
+                    max_samples=int(exp_cfg.get("max_samples", 500)),
+                    random_state=train_cfg["random_state"],
+                    target_class_names=target_class_names,
+                )
+                mlflow.log_artifacts(str(exp_dir), artifact_path="explainability")
+                mlflow.log_param("explainability_n_samples", shap_meta["n_samples"])
+            except Exception as e:
+                mlflow.log_param("explainability_error", str(e)[:500])
 
         mlflow.sklearn.log_model(best, artifact_path="model")
         model_uri = f"runs:/{run.info.run_id}/model"
