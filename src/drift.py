@@ -81,19 +81,20 @@ def run_drift_check(
             psi_val = _psi(ref_vals, actual, bins=bins)
             ks_stat, ks_pvalue = ks_2samp(ref_vals, actual)
         else:
+            ref_mean = float(ref_means.get(col) or 0.0)
             ref_std = ref.get("std", {}).get(col) or 1.0
             if ref_std != ref_std or ref_std == 0:
                 ref_std = 1.0
             synthetic_ref = np.random.normal(ref_mean, ref_std, size=min(len(actual), 5000))
             psi_val = _psi(synthetic_ref, actual, bins=bins)
             ks_stat, ks_pvalue = ks_2samp(synthetic_ref, actual[: len(synthetic_ref)])
-        flag = psi_val > psi_thr or ks_pvalue < ks_p
+        flag = bool(psi_val > psi_thr or ks_pvalue < ks_p)
         if flag:
             alerts += 1
         results.append(
             {
                 "column": col,
-                "psi": psi_val,
+                "psi": float(psi_val),
                 "ks_statistic": float(ks_stat),
                 "ks_pvalue": float(ks_pvalue),
                 "alert": flag,
